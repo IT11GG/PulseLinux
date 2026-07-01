@@ -1,0 +1,57 @@
+# Build outputs
+build/
+builddir/
+_build/
+*.o
+*.a
+*.so
+*.so.*
+*.la
+*.lo
+
+# Meson
+.meson-subprojects-wrap-rebuild
+subprojects/packagecache/
+subprojects/*/
+
+# Generated Wayland protocol sources (produced at build time by wayland-scanner)
+src/pulse-de/protocols/*-protocol.c
+src/pulse-de/protocols/*-client-protocol.h
+src/pulse-de/protocols/*-server-protocol.h
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.#*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Packaging outputs
+packaging/deb/*.deb
+packaging/rpm/*.rpm
+packaging/arch/*.pkg.tar.*
+
+# Debug / profiling
+*.core
+*.prof
+valgrind-out.txt
+perf.data*
+
+# Local developer overrides — never commit
+.env.local
+local.mk
+.envrc
+
+# Test artifacts
+tests/unit/*_output
+tests/integration/*_output
+
+# JS prototype build artifacts (design tools, not the compositor)
+node_modules/
+dist/
+.cache/

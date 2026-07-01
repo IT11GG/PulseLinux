@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release-build:
+    name: Release build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            meson ninja-build pkg-config gcc \
+            libwlroots-dev libwayland-dev wayland-protocols \
+            libxkbcommon-dev libdrm-dev libgbm-dev \
+            libinput-dev libudev-dev libpixman-1-dev libseat-dev
+
+      - name: Configure (release build)
+        run: |
+          meson setup builddir \
+            --buildtype=release \
+            --optimization=2 \
+            -Db_lto=true \
+            --prefix=/usr
+
+      - name: Build
+        run: ninja -C builddir
+
+      - name: Package (tar.gz)
+        run: |
+          DESTDIR="$PWD/pkg-root" ninja -C builddir install
+          VERSION="${GITHUB_REF_NAME#v}"
+          tar -czf "pulselinux-${VERSION}-x86_64.tar.gz" -C pkg-root .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: pulselinux-*.tar.gz
+          generate_release_notes: true

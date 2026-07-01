@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# PulseLinux pre-commit hook
+# Checks: clang-format, no debug markers, no trailing whitespace in C files.
+# Install: scripts/install-hooks.sh
+
+set -euo pipefail
+
+CLANG_FORMAT="${CLANG_FORMAT:-clang-format}"
+ERRORS=0
+
+# ---- 1. clang-format check on staged C/H files ----
+STAGED_C=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(c|h)$' || true)
+if [[ -n "$STAGED_C" ]]; then
+  if ! command -v "$CLANG_FORMAT" &>/dev/null; then
+    echo "pre-commit: clang-format not found — install it or set CLANG_FORMAT" >&2
+    exit 1
+  fi
+  for f in $STAGED_C; do
+    if ! "$CLANG_FORMAT" --dry-run --Werror "$f" 2>/dev/null; then
+      echo "pre-commit: clang-format violation: $f" >&2
+      echo "  Run: $CLANG_FORMAT -i $f" >&2
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+fi
+
+# ---- 2. No TODO/FIXME/HACK left in staged C files ----
+if [[ -n "$STAGED_C" ]]; then
+  for f in $STAGED_C; do
+    if grep -nE 'TODO|FIXME|HACK|XXX' "$f" 2>/dev/null; then
+      echo "pre-commit: unresolved marker in $f — resolve or convert to a GitHub issue" >&2
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+fi
+
+# ---- 3. Conventional Commit format check ----
+MSG_FILE=$(git rev-parse --git-dir)/COMMIT_EDITMSG
+if [[ -f "$MSG_FILE" ]]; then
+  MSG=$(cat "$MSG_FILE")
+  if ! echo "$MSG" | grep -qE '^(feat|fix|build|ci|docs|refactor|test|chore|perf)(\([a-z0-9_-]+\))?: .{1,100}'; then
+    echo "pre-commit: commit message does not follow Conventional Commits format" >&2
+    echo "  Expected: <type>(<scope>): <summary>" >&2
+    echo "  Got: $MSG" | head -1 >&2
+    ERRORS=$((ERRORS + 1))
+  fi
+fi
+
+if [[ $ERRORS -gt 0 ]]; then
+  echo "pre-commit: $ERRORS error(s) — commit aborted" >&2
+  exit 1
+fi
