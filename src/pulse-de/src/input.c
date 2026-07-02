@@ -180,10 +180,12 @@ void input_new_keyboard(struct pulse_server *server,
 
     wl_list_insert(&server->keyboards, &keyboard->link);
 
-    /* Update the seat capability flags to include keyboard */
-    uint32_t caps = wlr_seat_get_capabilities(server->seat) |
-                    WL_SEAT_CAPABILITY_KEYBOARD;
-    wlr_seat_set_capabilities(server->seat, caps);
+    /* Update the seat capability flags to include keyboard.
+     * wlroots 0.17 exposes capabilities directly as a field on the struct;
+     * there is no wlr_seat_get_capabilities() getter. */
+    wlr_seat_set_capabilities(server->seat,
+                               server->seat->capabilities |
+                               WL_SEAT_CAPABILITY_KEYBOARD);
 
     wlr_log(WLR_DEBUG, "Keyboard attached: %s", device->name);
 }
@@ -200,9 +202,9 @@ void input_new_pointer(struct pulse_server *server,
      * pointer acceleration and multi-device coalescing. */
     wlr_cursor_attach_input_device(server->cursor, device);
 
-    uint32_t caps = wlr_seat_get_capabilities(server->seat) |
-                    WL_SEAT_CAPABILITY_POINTER;
-    wlr_seat_set_capabilities(server->seat, caps);
+    wlr_seat_set_capabilities(server->seat,
+                               server->seat->capabilities |
+                               WL_SEAT_CAPABILITY_POINTER);
 
     wlr_log(WLR_DEBUG, "Pointer attached: %s", device->name);
 }

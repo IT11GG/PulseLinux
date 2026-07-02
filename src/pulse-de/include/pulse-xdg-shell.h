@@ -13,6 +13,8 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_scene.h>
 
+#include "pulse-decoration.h"
+
 struct pulse_server;
 
 /**
@@ -23,6 +25,7 @@ struct pulse_toplevel {
     struct pulse_server       *server;
     struct wlr_xdg_toplevel   *xdg_toplevel;
     struct wlr_scene_tree     *scene_tree; /* scene node for this window */
+    struct pulse_window_border *border;    /* focus-aware border rects */
 
     /* Listeners scoped to this toplevel's lifetime */
     struct wl_listener         map;

@@ -182,17 +182,20 @@ void output_handle_new(struct wl_listener *listener, void *data)
                                         scene_output);
 
     /* Set the background colour for this output's scene.
-     * wlr_scene renders the background (the root node) before compositing
-     * any surfaces on top. We set it once here; it persists until changed. */
-    struct wlr_scene_rect *bg =
-        wlr_scene_rect_create(&server->scene->tree, wlr_output->width,
-                               wlr_output->height,
-                               (const float[4]){PULSE_VOID_R, PULSE_VOID_G,
-                                                 PULSE_VOID_B, PULSE_VOID_A});
+     * Named array required — compound literal float[] in a function arg
+     * triggers -Wpedantic under -Werror with some C17 compilers. */
+    static const float pulse_void_color[4] = {
+        PULSE_VOID_R, PULSE_VOID_G, PULSE_VOID_B, PULSE_VOID_A
+    };
+    int bg_w = (mode != NULL) ? mode->width  : wlr_output->width;
+    int bg_h = (mode != NULL) ? mode->height : wlr_output->height;
+
+    struct wlr_scene_rect *bg = wlr_scene_rect_create(
+        &server->scene->tree, bg_w, bg_h, pulse_void_color);
     if (!bg) {
         wlr_log(WLR_ERROR, "Failed to create background rect for %s",
                 wlr_output->name);
-        /* Non-fatal — compositor continues, just without the background fill */
+        /* Non-fatal — scene defaults to transparent/black without this */
     }
 
     wlr_log(WLR_INFO, "Output configured: %s %dx%d@%.2fHz%s",

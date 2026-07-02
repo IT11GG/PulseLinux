@@ -34,6 +34,7 @@
 #include <wlr/util/log.h>
 
 #include "pulse-server.h"
+#include "pulse-decoration.h"
 #include "pulse-output.h"
 #include "pulse-input.h"
 #include "pulse-xdg-shell.h"
@@ -152,7 +153,13 @@ bool server_init(struct pulse_server *server)
     wl_signal_add(&server->xdg_shell->events.new_popup,
                   &server->new_xdg_popup);
 
-    /* ---- 9. Seat (logical input device group) -------------------------- */
+    /* ---- 9. Server-side decoration manager ----------------------------- */
+    if (!decoration_init(server)) {
+        wlr_log(WLR_ERROR, "Failed to initialise decoration manager");
+        goto err_output_layout;
+    }
+
+    /* ---- 10. Seat (logical input device group) ------------------------- */
     server->seat = wlr_seat_create(server->wl_display, "seat0");
     if (!server->seat) {
         wlr_log(WLR_ERROR, "Failed to create Wayland seat");

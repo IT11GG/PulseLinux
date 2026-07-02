@@ -30,6 +30,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 
@@ -61,6 +62,7 @@ struct pulse_server {
     struct wlr_subcompositor *subcompositor;
     struct wlr_data_device_manager *data_device_mgr;
     struct wlr_xdg_shell     *xdg_shell;
+    struct wlr_xdg_decoration_manager_v1 *decoration_mgr;
 
     /* ---- Output management --------------------------------------------- */
     struct wlr_output_layout *output_layout;

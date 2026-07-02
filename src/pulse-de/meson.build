@@ -41,6 +41,24 @@ layer_shell_c = custom_target(
   command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
 )
 
+# xdg-decoration protocol (server-side decorations — SSD)
+# This protocol lives in wayland-protocols, not wlroots' own protocols dir.
+xdg_decoration_xml = wayland_protos_dir / 'unstable/xdg-decoration/xdg-decoration-unstable-v1.xml'
+
+xdg_decoration_server_h = custom_target(
+  'xdg-decoration-server-header',
+  output: 'xdg-decoration-unstable-v1-protocol.h',
+  input:  xdg_decoration_xml,
+  command: [wayland_scanner, 'server-header', '@INPUT@', '@OUTPUT@'],
+)
+
+xdg_decoration_c = custom_target(
+  'xdg-decoration-source',
+  output: 'xdg-decoration-unstable-v1-protocol.c',
+  input:  xdg_decoration_xml,
+  command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
+)
+
 # ---------------------------------------------------------------------------
 # Source files
 # ---------------------------------------------------------------------------
@@ -51,6 +69,7 @@ pulse_de_sources = files(
   'src/input.c',
   'src/cursor.c',
   'src/xdg-shell.c',
+  'src/decoration.c',
 )
 
 pulse_de_generated = [
@@ -58,6 +77,8 @@ pulse_de_generated = [
   xdg_shell_c,
   layer_shell_server_h,
   layer_shell_c,
+  xdg_decoration_server_h,
+  xdg_decoration_c,
 ]
 
 # ---------------------------------------------------------------------------

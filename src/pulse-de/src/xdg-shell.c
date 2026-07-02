@@ -20,6 +20,7 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 
+#include "pulse-decoration.h"
 #include "pulse-server.h"
 #include "pulse-xdg-shell.h"
 
@@ -40,10 +41,14 @@ void xdg_shell_focus_toplevel(struct pulse_server *server,
     }
 
     if (prev != NULL) {
-        /* Tell the previously-focused window it no longer has focus.
-         * wlr_xdg_toplevel_set_activated(false) causes the client to draw
-         * its window as inactive (dimmed titlebar, etc.). */
+        /* Tell the previously-focused window it no longer has focus. */
         wlr_xdg_toplevel_set_activated(prev->xdg_toplevel, false);
+        /* Update its border to the unfocused colour scheme */
+        if (prev->border != NULL) {
+            struct wlr_box geo = {0};
+            wlr_xdg_surface_get_geometry(prev->xdg_toplevel->base, &geo);
+            decoration_update_border(prev->border, geo.width, geo.height, false);
+        }
     }
 
     server->focused_toplevel = toplevel;
@@ -59,6 +64,15 @@ void xdg_shell_focus_toplevel(struct pulse_server *server,
 
     /* Activate the toplevel (client draws active/focused state) */
     wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
+
+    /* Update border colours to reflect the new focus state.
+     * The previously-focused window's border was already set to unfocused
+     * colours in the defocus block above. */
+    if (toplevel->border != NULL) {
+        struct wlr_box geo = {0};
+        wlr_xdg_surface_get_geometry(toplevel->xdg_toplevel->base, &geo);
+        decoration_update_border(toplevel->border, geo.width, geo.height, true);
+    }
 
     /* Transfer keyboard focus */
     struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(server->seat);
@@ -116,10 +130,22 @@ struct pulse_toplevel *xdg_shell_toplevel_at(struct pulse_server *server,
  * ------------------------------------------------------------------------- */
 static void toplevel_handle_map(struct wl_listener *listener, void *data)
 {
-    /* A toplevel is "mapped" when the client is ready to display content.
-     * We focus it on map to match the natural expectation that a newly
-     * opened window receives keyboard focus. */
     struct pulse_toplevel *toplevel = wl_container_of(listener, toplevel, map);
+
+    /* Create the server-side border now that the client has committed its
+     * initial size. wlr_xdg_surface_get_geometry() is valid after map. */
+    struct wlr_box geo = {0};
+    wlr_xdg_surface_get_geometry(toplevel->xdg_toplevel->base, &geo);
+
+    if (geo.width > 0 && geo.height > 0) {
+        toplevel->border = decoration_create_border(
+            toplevel->server,
+            toplevel->scene_tree,
+            geo.width, geo.height,
+            true /* starts focused */);
+    }
+
+    /* Focus the new window — also updates border colour via xdg_shell_focus_toplevel */
     xdg_shell_focus_toplevel(toplevel->server, toplevel);
 }
 
@@ -127,6 +153,10 @@ static void toplevel_handle_unmap(struct wl_listener *listener, void *data)
 {
     struct pulse_toplevel *toplevel =
         wl_container_of(listener, toplevel, unmap);
+
+    /* Destroy the border when the window hides */
+    decoration_destroy_border(toplevel->border);
+    toplevel->border = NULL;
 
     if (toplevel->server->focused_toplevel == toplevel) {
         /* Focus the next toplevel in the list, or clear focus if none */
@@ -144,19 +174,26 @@ static void toplevel_handle_unmap(struct wl_listener *listener, void *data)
 
 static void toplevel_handle_commit(struct wl_listener *listener, void *data)
 {
-    /* Fired when the client commits a new surface state (new frame content,
-     * geometry changes, etc.). wlr_scene handles damage propagation
-     * automatically, so this handler only needs to act on geometry changes
-     * such as the initial configure acknowledgement. */
     struct pulse_toplevel *toplevel =
         wl_container_of(listener, toplevel, commit);
 
     if (toplevel->xdg_toplevel->base->initial_commit) {
-        /* First commit after creation — send the initial configure.
-         * Passing 0,0 lets the client choose its own size. A future
-         * Milestone will set the size based on the output geometry and
-         * the window's desired placement zone. */
+        /* First commit: send the initial configure. 0,0 lets the client
+         * choose its own preferred size. */
         wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, 0, 0);
+        return;
+    }
+
+    /* On subsequent commits, update the border if the geometry changed
+     * (e.g. the client resized itself). */
+    if (toplevel->border != NULL) {
+        struct wlr_box geo = {0};
+        wlr_xdg_surface_get_geometry(toplevel->xdg_toplevel->base, &geo);
+        bool focused = (toplevel->server->focused_toplevel == toplevel);
+        if (geo.width > 0 && geo.height > 0) {
+            decoration_update_border(toplevel->border, geo.width, geo.height,
+                                     focused);
+        }
     }
 }
 
@@ -164,6 +201,10 @@ static void toplevel_handle_destroy(struct wl_listener *listener, void *data)
 {
     struct pulse_toplevel *toplevel =
         wl_container_of(listener, toplevel, destroy);
+
+    /* Final border cleanup (may already be NULL if window was unmapped) */
+    decoration_destroy_border(toplevel->border);
+    toplevel->border = NULL;
 
     wl_list_remove(&toplevel->map.link);
     wl_list_remove(&toplevel->unmap.link);
@@ -250,6 +291,11 @@ void xdg_shell_handle_new_toplevel(struct wl_listener *listener, void *data)
      * can walk up from any surface node to its owning pulse_toplevel. */
     toplevel->scene_tree->node.data = toplevel;
 
+    /* Also store the scene_tree in the xdg_surface's data field so that
+     * xdg_shell_handle_new_popup() can resolve its parent scene tree
+     * without a separate lookup structure. */
+    xdg_toplevel->base->data = toplevel->scene_tree;
+
     /* Wire up all toplevel event listeners */
     toplevel->map.notify = toplevel_handle_map;
     wl_signal_add(&xdg_toplevel->base->surface->events.map, &toplevel->map);
@@ -307,6 +353,10 @@ static void popup_handle_destroy(struct wl_listener *listener, void *data)
 
 void xdg_shell_handle_new_popup(struct wl_listener *listener, void *data)
 {
+    /* Recover the server via the listener that lives in server->new_xdg_popup.
+     * This is the idiomatic wlroots pattern — no compound-literal casts. */
+    struct pulse_server *server =
+        wl_container_of(listener, server, new_xdg_popup);
     struct wlr_xdg_popup *xdg_popup = data;
 
     struct pulse_popup *popup = calloc(1, sizeof(*popup));
@@ -316,17 +366,25 @@ void xdg_shell_handle_new_popup(struct wl_listener *listener, void *data)
     }
     popup->xdg_popup = xdg_popup;
 
-    /* Place the popup under its parent in the scene graph */
-    struct wlr_xdg_surface *parent_surface =
+    /* Find the parent scene tree.
+     * xdg_popup->parent is the parent wlr_surface. If it belongs to an
+     * xdg_surface, that surface's data pointer holds the scene tree we
+     * stored in xdg_shell_handle_new_toplevel(). Fall back to the scene
+     * root if the parent cannot be resolved (should not happen in practice). */
+    struct wlr_scene_tree *parent_tree = &server->scene->tree;
+    struct wlr_xdg_surface *parent_xdg =
         wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
-    struct wlr_scene_tree *parent_tree =
-        parent_surface ? parent_surface->data : NULL;
+    if (parent_xdg != NULL && parent_xdg->data != NULL) {
+        parent_tree = (struct wlr_scene_tree *)parent_xdg->data;
+    }
 
-    popup->scene_tree = wlr_scene_xdg_surface_create(
-        parent_tree ? parent_tree : &((struct pulse_server *)(
-            wl_container_of(listener, (struct pulse_server *){NULL},
-                            new_xdg_popup)))->scene->tree,
-        xdg_popup->base);
+    popup->scene_tree = wlr_scene_xdg_surface_create(parent_tree,
+                                                       xdg_popup->base);
+    if (!popup->scene_tree) {
+        wlr_log(WLR_ERROR, "Failed to create scene tree for popup");
+        free(popup);
+        return;
+    }
 
     popup->commit.notify = popup_handle_commit;
     wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);

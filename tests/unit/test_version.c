@@ -10,6 +10,7 @@
  * A test runner that exits non-zero is treated as a failure by ninja test.
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

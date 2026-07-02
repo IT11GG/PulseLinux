@@ -20,3 +20,16 @@ test_version = executable(
 )
 
 test('version string is set', test_version)
+
+# ---------------------------------------------------------------------------
+# test_decoration_colors: verifies frozen design-token colour constants
+# match the hex values in the theme spec. No Wayland/wlroots dependency.
+# ---------------------------------------------------------------------------
+test_decoration_colors = executable(
+  'test_decoration_colors',
+  files('test_decoration_colors.c'),
+  dependencies: [dependency('m')],
+  install: false,
+)
+
+test('decoration colours match theme spec', test_decoration_colors)
