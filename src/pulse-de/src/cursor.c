@@ -23,6 +23,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 
+#include "pulse-grab.h"
 #include "pulse-server.h"
 #include "pulse-xdg-shell.h"
 
@@ -65,7 +66,12 @@ void cursor_handle_motion(struct wl_listener *listener, void *data)
 
     wlr_cursor_move(server->cursor, &event->pointer->base,
                     event->delta_x, event->delta_y);
-    cursor_update_focus(server, event->time_msec);
+
+    if (grab_is_active(&server->grab)) {
+        grab_update(server, event->time_msec);
+    } else {
+        cursor_update_focus(server, event->time_msec);
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -79,7 +85,12 @@ void cursor_handle_motion_absolute(struct wl_listener *listener, void *data)
 
     wlr_cursor_warp_absolute(server->cursor, &event->pointer->base,
                               event->x, event->y);
-    cursor_update_focus(server, event->time_msec);
+
+    if (grab_is_active(&server->grab)) {
+        grab_update(server, event->time_msec);
+    } else {
+        cursor_update_focus(server, event->time_msec);
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -92,14 +103,22 @@ void cursor_handle_button(struct wl_listener *listener, void *data)
         wl_container_of(listener, server, cursor_button);
     struct wlr_pointer_button_event *event = data;
 
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
+        /* Any button release ends an active grab, regardless of which
+         * button it was. This prevents a stuck grab if the user releases
+         * a different button than the one that started the grab. */
+        if (grab_is_active(&server->grab)) {
+            grab_end(server);
+            return;
+        }
+    }
+
     /* Forward the button event to the focused client */
     wlr_seat_pointer_notify_button(server->seat, event->time_msec,
                                     event->button, event->state);
 
     if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
-        /* Focus-on-click: find the toplevel under the cursor and focus it.
-         * This is the default PulseDE click-to-focus policy.
-         * Milestone 3 will add focus-follows-pointer as a Settings option. */
+        /* Focus-on-click: find the toplevel under the cursor and focus it. */
         double sx, sy;
         struct wlr_surface *surface = NULL;
         struct pulse_toplevel *toplevel = xdg_shell_toplevel_at(

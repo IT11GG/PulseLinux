@@ -21,6 +21,7 @@
 #include <wlr/util/log.h>
 
 #include "pulse-decoration.h"
+#include "pulse-grab.h"
 #include "pulse-server.h"
 #include "pulse-xdg-shell.h"
 
@@ -222,24 +223,19 @@ static void toplevel_handle_destroy(struct wl_listener *listener, void *data)
 static void toplevel_handle_request_move(struct wl_listener *listener,
                                           void *data)
 {
-    /* Interactive window move — implemented in Milestone 3 (Window Manager).
-     * For Milestone 1 we acknowledge the request without acting on it,
-     * which is protocol-correct: the client sends a request and the
-     * compositor decides whether and how to honour it. */
     struct pulse_toplevel *toplevel =
         wl_container_of(listener, toplevel, request_move);
-    (void)toplevel;
-    wlr_log(WLR_DEBUG, "request_move: not yet implemented");
+    const struct wlr_xdg_toplevel_move_event *event = data;
+    grab_begin_move(toplevel->server, toplevel, event->serial);
 }
 
 static void toplevel_handle_request_resize(struct wl_listener *listener,
                                             void *data)
 {
-    /* Interactive window resize — implemented in Milestone 3. */
     struct pulse_toplevel *toplevel =
         wl_container_of(listener, toplevel, request_resize);
-    (void)toplevel;
-    wlr_log(WLR_DEBUG, "request_resize: not yet implemented");
+    const struct wlr_xdg_toplevel_resize_event *event = data;
+    grab_begin_resize(toplevel->server, toplevel, event->serial, event->edges);
 }
 
 static void toplevel_handle_request_maximize(struct wl_listener *listener,

@@ -11,6 +11,7 @@
 
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_scene.h>
 
 struct pulse_server;
 
@@ -21,6 +22,11 @@ struct pulse_output {
     struct wl_list       link;    /* server->outputs */
     struct pulse_server *server;
     struct wlr_output   *wlr_output;
+
+    /* Background colour rect (--pulse-void #050505).
+     * Stored so output_handle_request_state() can resize it when the
+     * output resolution changes. */
+    struct wlr_scene_rect *bg_rect;
 
     /* Listeners scoped to this output's lifetime */
     struct wl_listener   frame;

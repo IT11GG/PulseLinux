@@ -14,6 +14,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include "pulse-grab.h"
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/render/allocator.h>
@@ -32,6 +33,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/util/edges.h>
 #include <wlr/util/log.h>
 
 /* Forward declarations for subsystem types defined in their own headers */
@@ -77,6 +79,9 @@ struct pulse_server {
     /* ---- Window management state --------------------------------------- */
     struct wl_list            toplevels; /* list of struct pulse_toplevel */
     struct pulse_toplevel    *focused_toplevel;
+
+    /* ---- Interactive grab state (move / resize) ------------------------ */
+    struct pulse_grab         grab;
 
     /* ---- Wayland listeners (wl_listener must live as long as the object
      *       it listens on — storing them in the server struct is idiomatic

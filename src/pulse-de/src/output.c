@@ -83,10 +83,24 @@ static void output_handle_request_state(struct wl_listener *listener,
         wl_container_of(listener, output, request_state);
     const struct wlr_output_event_request_state *event = data;
 
-    /* Commit the requested state immediately. For a production compositor
-     * this would validate the requested mode against the output's supported
-     * modes before committing. Milestone 1 accepts all requests. */
-    wlr_output_commit_state(output->wlr_output, event->state);
+    if (!wlr_output_commit_state(output->wlr_output, event->state)) {
+        wlr_log(WLR_ERROR, "Failed to commit output state for %s",
+                output->wlr_output->name);
+        return;
+    }
+
+    /* Resize the background rect to match the new output dimensions.
+     * Without this, a resolution change leaves the old-size rect covering
+     * only part of the new output, revealing transparent areas. */
+    if (output->bg_rect != NULL) {
+        wlr_scene_rect_set_size(output->bg_rect,
+                                 output->wlr_output->width,
+                                 output->wlr_output->height);
+        wlr_log(WLR_DEBUG, "Output %s: background rect resized to %dx%d",
+                output->wlr_output->name,
+                output->wlr_output->width,
+                output->wlr_output->height);
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -190,9 +204,9 @@ void output_handle_new(struct wl_listener *listener, void *data)
     int bg_w = (mode != NULL) ? mode->width  : wlr_output->width;
     int bg_h = (mode != NULL) ? mode->height : wlr_output->height;
 
-    struct wlr_scene_rect *bg = wlr_scene_rect_create(
+    output->bg_rect = wlr_scene_rect_create(
         &server->scene->tree, bg_w, bg_h, pulse_void_color);
-    if (!bg) {
+    if (!output->bg_rect) {
         wlr_log(WLR_ERROR, "Failed to create background rect for %s",
                 wlr_output->name);
         /* Non-fatal — scene defaults to transparent/black without this */

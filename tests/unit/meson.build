@@ -33,3 +33,16 @@ test_decoration_colors = executable(
 )
 
 test('decoration colours match theme spec', test_decoration_colors)
+
+# ---------------------------------------------------------------------------
+# test_grab: unit tests for the interactive grab state machine.
+# Tests move, resize, min-size clamping, double-grab guard, idempotent end.
+# No Wayland/wlroots dependency — pure C logic test.
+# ---------------------------------------------------------------------------
+test_grab = executable(
+  'test_grab',
+  files('test_grab.c'),
+  install: false,
+)
+
+test('grab state machine', test_grab)
