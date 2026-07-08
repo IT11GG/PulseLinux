@@ -23,7 +23,9 @@ xdg_shell_c = custom_target(
 )
 
 # Layer-shell protocol (external; wlroots ships a copy in its own protocols dir)
-wlroots_protos_dir = wlroots.get_variable('pkgdatadir') / 'protocols'
+# wlroots 0.17 exposes 'datadir' in its .pc file, not 'pkgdatadir'.
+# Protocol XML files are installed to $(datadir)/wlroots/protocols/.
+wlroots_protos_dir = wlroots.get_variable('datadir') / 'wlroots' / 'protocols'
 
 layer_shell_xml = wlroots_protos_dir / 'wlr-layer-shell-unstable-v1.xml'
 

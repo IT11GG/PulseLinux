@@ -24,7 +24,8 @@ xdg_shell_client_c = custom_target(
   command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
 )
 
-layer_shell_xml = wlroots.get_variable('pkgdatadir') / 'protocols/wlr-layer-shell-unstable-v1.xml'
+# wlroots 0.17 exposes 'datadir', not 'pkgdatadir'.
+layer_shell_xml = wlroots.get_variable('datadir') / 'wlroots' / 'protocols' / 'wlr-layer-shell-unstable-v1.xml'
 
 layer_shell_client_h = custom_target(
   'panel-layer-shell-client-header',
