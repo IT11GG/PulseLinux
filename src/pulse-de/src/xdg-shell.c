@@ -133,6 +133,8 @@ static void toplevel_handle_map(struct wl_listener *listener, void *data)
 {
     struct pulse_toplevel *toplevel = wl_container_of(listener, toplevel, map);
 
+    toplevel->is_mapped = true;
+
     /* Create the server-side border now that the client has committed its
      * initial size. wlr_xdg_surface_get_geometry() is valid after map. */
     struct wlr_box geo = {0};
@@ -146,6 +148,10 @@ static void toplevel_handle_map(struct wl_listener *listener, void *data)
             true /* starts focused */);
     }
 
+    /* Raise this window to the top of the scene graph so new windows
+     * always appear above existing ones — Milestone 4 Z-order requirement. */
+    wlr_scene_node_raise_to_top(&toplevel->scene_tree->node);
+
     /* Focus the new window — also updates border colour via xdg_shell_focus_toplevel */
     xdg_shell_focus_toplevel(toplevel->server, toplevel);
 }
@@ -155,16 +161,20 @@ static void toplevel_handle_unmap(struct wl_listener *listener, void *data)
     struct pulse_toplevel *toplevel =
         wl_container_of(listener, toplevel, unmap);
 
+    toplevel->is_mapped = false;
+
     /* Destroy the border when the window hides */
     decoration_destroy_border(toplevel->border);
     toplevel->border = NULL;
 
     if (toplevel->server->focused_toplevel == toplevel) {
-        /* Focus the next toplevel in the list, or clear focus if none */
+        /* Transfer focus to the topmost mapped window, skipping unmapped
+         * toplevels. Without the is_mapped check a hidden window could
+         * receive keyboard focus, producing a focus black-hole. */
         struct pulse_toplevel *next = NULL;
         struct pulse_toplevel *t;
         wl_list_for_each(t, &toplevel->server->toplevels, link) {
-            if (t != toplevel) {
+            if (t != toplevel && t->is_mapped) {
                 next = t;
                 break;
             }
@@ -334,8 +344,11 @@ static void popup_handle_commit(struct wl_listener *listener, void *data)
 {
     struct pulse_popup *popup = wl_container_of(listener, popup, commit);
     if (popup->xdg_popup->base->initial_commit) {
-        wlr_xdg_popup_unconstrain_from_box(popup->xdg_popup,
-            &(struct wlr_box){0, 0, 4096, 4096});
+        /* Named variable avoids compound-literal-in-argument -Wpedantic
+         * warning. 4096x4096 is a conservative unconstrain box; in a
+         * future milestone this will use the actual output geometry. */
+        struct wlr_box unconstrain = {0, 0, 4096, 4096};
+        wlr_xdg_popup_unconstrain_from_box(popup->xdg_popup, &unconstrain);
     }
 }
 

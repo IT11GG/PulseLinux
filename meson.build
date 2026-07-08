@@ -39,6 +39,7 @@ pixman          = dependency('pixman-1',         version: '>= 0.42.0')
 libinput        = dependency('libinput',         version: '>= 1.25.0')
 libudev         = dependency('libudev')
 libseat         = dependency('libseat',          version: '>= 0.7.0')
+cairo           = dependency('cairo',            version: '>= 1.18.0')
 
 # ---------------------------------------------------------------------------
 # Wayland protocol scanner — generates C stubs from XML protocol definitions
@@ -66,6 +67,7 @@ version_inc = include_directories('.')
 # Subdirectories
 # ---------------------------------------------------------------------------
 subdir('src/pulse-de')
+subdir('src/pulse-panel')
 # Future milestones add their subdir() calls here:
 # subdir('src/pulse-runtime')
 # subdir('src/pulse-api')

@@ -26,6 +26,7 @@ struct pulse_toplevel {
     struct wlr_xdg_toplevel   *xdg_toplevel;
     struct wlr_scene_tree     *scene_tree; /* scene node for this window */
     struct pulse_window_border *border;    /* focus-aware border rects */
+    bool                       is_mapped;  /* true between map and unmap events */
 
     /* Listeners scoped to this toplevel's lifetime */
     struct wl_listener         map;

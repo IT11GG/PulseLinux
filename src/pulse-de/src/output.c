@@ -26,6 +26,7 @@
 #include <wlr/util/log.h>
 
 #include "pulse-server.h"
+#include "pulse-layer.h"
 #include "pulse-output.h"
 
 /* ---------------------------------------------------------------------------
@@ -89,9 +90,7 @@ static void output_handle_request_state(struct wl_listener *listener,
         return;
     }
 
-    /* Resize the background rect to match the new output dimensions.
-     * Without this, a resolution change leaves the old-size rect covering
-     * only part of the new output, revealing transparent areas. */
+    /* Resize the background rect to match the new output dimensions. */
     if (output->bg_rect != NULL) {
         wlr_scene_rect_set_size(output->bg_rect,
                                  output->wlr_output->width,
@@ -101,6 +100,9 @@ static void output_handle_request_state(struct wl_listener *listener,
                 output->wlr_output->width,
                 output->wlr_output->height);
     }
+
+    /* Re-arrange layer surfaces so panels update their geometry */
+    layer_arrange(output->server, output);
 }
 
 /* ---------------------------------------------------------------------------
@@ -112,6 +114,16 @@ static void output_handle_destroy(struct wl_listener *listener, void *data)
 
     wlr_log(WLR_INFO, "Output destroyed: %s", output->wlr_output->name);
 
+    /* Destroy the background rect. wlr_scene_node_destroy() removes it from
+     * the scene graph and frees the rect allocation. Must happen before the
+     * output is removed from the layout, which would orphan it. */
+    if (output->bg_rect != NULL) {
+        wlr_scene_node_destroy(&output->bg_rect->node);
+        output->bg_rect = NULL;
+    }
+
+    /* Remove listeners before freeing, to prevent wlroots from calling them
+     * after the output struct is gone. */
     wl_list_remove(&output->frame.link);
     wl_list_remove(&output->request_state.link);
     wl_list_remove(&output->destroy.link);
@@ -210,7 +222,18 @@ void output_handle_new(struct wl_listener *listener, void *data)
         wlr_log(WLR_ERROR, "Failed to create background rect for %s",
                 wlr_output->name);
         /* Non-fatal — scene defaults to transparent/black without this */
+    } else {
+        /* Push the background rect to the bottom of the scene tree so it
+         * is always behind window surfaces. Without this, a rect created
+         * after windows are already in the scene (e.g. on a hotplugged
+         * second monitor) would render on top of all open windows. */
+        wlr_scene_node_lower_to_bottom(&output->bg_rect->node);
     }
+
+    /* Initialise usable_area to the full output; layer_arrange will
+     * shrink it as layer surfaces declare exclusive zones. */
+    output->usable_area = (struct wlr_box){0, 0, bg_w, bg_h};
+    layer_arrange(output->server, output);
 
     wlr_log(WLR_INFO, "Output configured: %s %dx%d@%.2fHz%s",
             wlr_output->name,

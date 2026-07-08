@@ -71,6 +71,7 @@ pulse_de_sources = files(
   'src/xdg-shell.c',
   'src/decoration.c',
   'src/grab.c',
+  'src/layer.c',
 )
 
 pulse_de_generated = [

@@ -38,21 +38,25 @@ static void cursor_update_focus(struct pulse_server *server, uint32_t time_msec)
     struct pulse_toplevel *toplevel = xdg_shell_toplevel_at(
         server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
-    if (toplevel == NULL) {
-        /* Cursor is not over any client surface — reset to default image */
-        wlr_cursor_set_xcursor(server->cursor, server->xcursor_mgr, "default");
-    }
-
     if (surface != NULL) {
-        /* Notify the seat of the new pointer focus. wlr_seat will send the
-         * wl_pointer.enter event to the newly-focused surface and
-         * wl_pointer.leave to the previously-focused one. */
-        wlr_seat_pointer_notify_enter(server->seat, surface, sx, sy);
-        wlr_seat_pointer_notify_motion(server->seat, time_msec, sx, sy);
+        /* Only send pointer-enter when the focused surface has actually
+         * changed. Sending enter unconditionally generates a redundant
+         * enter+leave pair on every motion event, which can confuse clients
+         * that track enter/leave to manage hover state or drag detection. */
+        if (surface != server->seat->pointer_state.focused_surface) {
+            wlr_seat_pointer_notify_enter(server->seat, surface, sx, sy);
+        } else {
+            wlr_seat_pointer_notify_motion(server->seat, time_msec, sx, sy);
+        }
     } else {
-        /* No surface under cursor — clear pointer focus */
+        /* No surface under the cursor: restore the default cursor image and
+         * clear pointer focus so the client receives a leave event. */
+        wlr_cursor_set_xcursor(server->cursor, server->xcursor_mgr, "default");
         wlr_seat_pointer_clear_focus(server->seat);
     }
+
+    (void)toplevel; /* toplevel pointer used in future milestones for
+                     * hover-based focus-follows-pointer policy */
 }
 
 /* ---------------------------------------------------------------------------

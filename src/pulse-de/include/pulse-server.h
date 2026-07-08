@@ -31,6 +31,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/edges.h>
@@ -59,12 +60,20 @@ struct pulse_server {
     struct wlr_scene         *scene;
     struct wlr_scene_output_layout *scene_layout;
 
+    /* ---- Layer scene trees (one per layer-shell layer, in Z order) ----- */
+    /* background < bottom < [xdg windows] < top < overlay                  */
+    struct wlr_scene_tree     *layer_tree_background;
+    struct wlr_scene_tree     *layer_tree_bottom;
+    struct wlr_scene_tree     *layer_tree_top;
+    struct wlr_scene_tree     *layer_tree_overlay;
+
     /* ---- Protocols ------------------------------------------------------ */
     struct wlr_compositor    *compositor;
     struct wlr_subcompositor *subcompositor;
     struct wlr_data_device_manager *data_device_mgr;
     struct wlr_xdg_shell     *xdg_shell;
     struct wlr_xdg_decoration_manager_v1 *decoration_mgr;
+    struct wlr_layer_shell_v1 *layer_shell;
 
     /* ---- Output management --------------------------------------------- */
     struct wlr_output_layout *output_layout;
@@ -77,7 +86,8 @@ struct pulse_server {
     struct wl_list            keyboards; /* list of struct pulse_keyboard */
 
     /* ---- Window management state --------------------------------------- */
-    struct wl_list            toplevels; /* list of struct pulse_toplevel */
+    struct wl_list            toplevels;      /* list of struct pulse_toplevel */
+    struct wl_list            layer_surfaces;  /* list of struct pulse_layer_surface */
     struct pulse_toplevel    *focused_toplevel;
 
     /* ---- Interactive grab state (move / resize) ------------------------ */
@@ -89,6 +99,8 @@ struct pulse_server {
     struct wl_listener        new_output;
     struct wl_listener        new_xdg_toplevel;
     struct wl_listener        new_xdg_popup;
+    struct wl_listener        new_decoration;
+    struct wl_listener        new_layer_surface;
     struct wl_listener        cursor_motion;
     struct wl_listener        cursor_motion_absolute;
     struct wl_listener        cursor_button;

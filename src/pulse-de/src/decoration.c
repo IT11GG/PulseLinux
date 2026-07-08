@@ -77,12 +77,13 @@ bool decoration_init(struct pulse_server *server)
         return false;
     }
 
-    /* Store the listener as a static — it lives for the session lifetime,
-     * same as the manager. The manager is owned by wl_display. */
-    static struct wl_listener new_decoration;
-    new_decoration.notify = decoration_handle_new_toplevel_decoration;
+    /* Use server->new_decoration (field on pulse_server) rather than a
+     * static listener. A static wl_listener is unsafe if decoration_init()
+     * were ever called twice in one process — the wl_list link in the
+     * static would be overwritten, causing a wlroots assertion failure. */
+    server->new_decoration.notify = decoration_handle_new_toplevel_decoration;
     wl_signal_add(&server->decoration_mgr->events.new_toplevel_decoration,
-                  &new_decoration);
+                  &server->new_decoration);
 
     wlr_log(WLR_DEBUG, "xdg-decoration manager created (SSD mode)");
     return true;

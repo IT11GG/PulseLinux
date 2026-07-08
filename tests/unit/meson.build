@@ -46,3 +46,28 @@ test_grab = executable(
 )
 
 test('grab state machine', test_grab)
+
+# ---------------------------------------------------------------------------
+# test_focus_stacking: Milestone 4 — is_mapped tracking, focus transfer
+# skipping unmapped windows, Z-order invariant, cursor enter dedup.
+# No Wayland/wlroots dependency.
+# ---------------------------------------------------------------------------
+test_focus_stacking = executable(
+  'test_focus_stacking',
+  files('test_focus_stacking.c'),
+  install: false,
+)
+
+test('focus and stacking state machine', test_focus_stacking)
+
+# ---------------------------------------------------------------------------
+# test_clock: Milestone 5 — clock string formatting, zero-padding,
+# buffer bounds, design token cross-checks. No Wayland/Cairo dependency.
+# ---------------------------------------------------------------------------
+test_clock = executable(
+  'test_clock',
+  files('test_clock.c'),
+  install: false,
+)
+
+test('clock string formatting', test_clock)

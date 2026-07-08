@@ -33,6 +33,7 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 
+#include "pulse-layer.h"
 #include "pulse-server.h"
 #include "pulse-decoration.h"
 #include "pulse-output.h"
@@ -159,7 +160,13 @@ bool server_init(struct pulse_server *server)
         goto err_output_layout;
     }
 
-    /* ---- 10. Seat (logical input device group) ------------------------- */
+    /* ---- 10. Layer shell (must be before seat/cursor) ---------------- */
+    if (!layer_init(server)) {
+        wlr_log(WLR_ERROR, "Failed to initialise layer shell");
+        goto err_output_layout;
+    }
+
+    /* ---- 11. Seat (logical input device group) ------------------------- */
     server->seat = wlr_seat_create(server->wl_display, "seat0");
     if (!server->seat) {
         wlr_log(WLR_ERROR, "Failed to create Wayland seat");
@@ -174,7 +181,7 @@ bool server_init(struct pulse_server *server)
     wl_signal_add(&server->seat->events.request_set_selection,
                   &server->request_set_selection);
 
-    /* ---- 10. Cursor ---------------------------------------------------- */
+    /* ---- 12. Cursor --------------------------------------------------- */
     server->cursor = wlr_cursor_create();
     if (!server->cursor) {
         wlr_log(WLR_ERROR, "Failed to create cursor");
@@ -209,11 +216,11 @@ bool server_init(struct pulse_server *server)
     server->cursor_frame.notify = cursor_handle_frame;
     wl_signal_add(&server->cursor->events.frame, &server->cursor_frame);
 
-    /* ---- 11. Input device listener ------------------------------------ */
+    /* ---- 13. Input device listener ----------------------------------- */
     server->new_input.notify = input_handle_new_input;
     wl_signal_add(&server->backend->events.new_input, &server->new_input);
 
-    /* ---- 12. Output listener ------------------------------------------ */
+    /* ---- 14. Output listener ----------------------------------------- */
     server->new_output.notify = output_handle_new;
     wl_signal_add(&server->backend->events.new_output, &server->new_output);
 

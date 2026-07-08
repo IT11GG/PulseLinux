@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
@@ -41,7 +40,6 @@
 #include "pulse-grab.h"
 #include "pulse-server.h"
 #include "pulse-xdg-shell.h"
-#include "pulse-decoration.h"
 
 /* Minimum window dimensions enforced during resize */
 #define MIN_WIN_WIDTH  120

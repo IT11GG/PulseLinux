@@ -12,6 +12,7 @@
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_scene.h>
+#include <wlr/util/box.h>
 
 struct pulse_server;
 
@@ -22,6 +23,11 @@ struct pulse_output {
     struct wl_list       link;    /* server->outputs */
     struct pulse_server *server;
     struct wlr_output   *wlr_output;
+
+    /* Usable area after layer surfaces have claimed their exclusive zones.
+     * Updated by layer_arrange() whenever layer surfaces map/unmap/resize.
+     * The Window Manager uses this for maximise placement (future milestone). */
+    struct wlr_box       usable_area;
 
     /* Background colour rect (--pulse-void #050505).
      * Stored so output_handle_request_state() can resize it when the
