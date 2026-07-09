@@ -23,11 +23,9 @@ xdg_shell_c = custom_target(
 )
 
 # Layer-shell protocol (external; wlroots ships a copy in its own protocols dir)
-# wlroots 0.17 exposes 'datadir' in its .pc file, not 'pkgdatadir'.
-# Protocol XML files are installed to $(datadir)/wlroots/protocols/.
-wlroots_protos_dir = wlroots.get_variable('datadir') / 'wlroots' / 'protocols'
-
-layer_shell_xml = wlroots_protos_dir / 'wlr-layer-shell-unstable-v1.xml'
+# wlr-layer-shell is vendored into protocols/ because wlroots does not
+# expose a stable pkg-config variable pointing to its protocol directory.
+layer_shell_xml = meson.project_source_root() / 'protocols' / 'wlr-layer-shell-unstable-v1.xml'
 
 layer_shell_server_h = custom_target(
   'layer-shell-server-header',
