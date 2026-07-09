@@ -88,8 +88,12 @@ pulse_de_generated = [
 # ---------------------------------------------------------------------------
 pulse_de_inc = include_directories(
   'include',
-  meson.current_build_dir(),  # for generated protocol headers
 )
+# Generated protocol headers (.h files from custom_target) are automatically
+# accessible because Meson adds the target's build directory to the include
+# path when a generated file appears in the sources list. Passing
+# meson.current_build_dir() explicitly is both unnecessary and rejected by
+# Meson >= 1.3 as an absolute path inside the source tree.
 
 # ---------------------------------------------------------------------------
 # Executable

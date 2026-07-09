@@ -66,8 +66,9 @@ panel_generated = [
 
 panel_inc = include_directories(
   '.',
-  meson.current_build_dir(),
 )
+# Generated protocol headers are accessible automatically via Meson's
+# implicit build directory include when generated files appear in sources.
 
 # ---------------------------------------------------------------------------
 # Executable
