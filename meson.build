@@ -15,6 +15,7 @@ project(
 # Compiler flags
 # ---------------------------------------------------------------------------
 cc = meson.get_compiler('c')
+libm = cc.find_library('m', required: true)
 
 add_project_arguments(
   cc.get_supported_arguments([

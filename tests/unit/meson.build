@@ -28,7 +28,7 @@ test('version string is set', test_version)
 test_decoration_colors = executable(
   'test_decoration_colors',
   files('test_decoration_colors.c'),
-  dependencies: [dependency('m')],
+  dependencies: [libm],
   install: false,
 )
 
