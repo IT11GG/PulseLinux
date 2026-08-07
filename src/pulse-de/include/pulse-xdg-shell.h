@@ -50,11 +50,11 @@ struct pulse_popup {
     struct wl_listener      destroy;
 };
 
-/* Handler registered with server->xdg_shell.events.new_toplevel */
-void xdg_shell_handle_new_toplevel(struct wl_listener *listener, void *data);
-
-/* Handler registered with server->xdg_shell.events.new_popup */
-void xdg_shell_handle_new_popup(struct wl_listener *listener, void *data);
+/* Handler registered with server->xdg_shell.events.new_surface.
+ * wlroots 0.17 emits one signal for every xdg_surface; the handler
+ * dispatches on the surface role to the internal toplevel/popup
+ * handlers (wlroots 0.18+ has separate new_toplevel/new_popup signals). */
+void xdg_shell_handle_new_surface(struct wl_listener *listener, void *data);
 
 /**
  * xdg_shell_focus_toplevel() - give keyboard focus to a toplevel.

@@ -267,14 +267,12 @@ static void toplevel_handle_request_fullscreen(struct wl_listener *listener,
 }
 
 /* ---------------------------------------------------------------------------
- * New toplevel — called when a client creates an application window
+ * New toplevel — called from xdg_shell_handle_new_surface() for every
+ * xdg_surface with role WLR_XDG_SURFACE_ROLE_TOPLEVEL.
  * ------------------------------------------------------------------------- */
-void xdg_shell_handle_new_toplevel(struct wl_listener *listener, void *data)
+static void handle_new_toplevel(struct pulse_server *server,
+                                  struct wlr_xdg_toplevel *xdg_toplevel)
 {
-    struct pulse_server *server =
-        wl_container_of(listener, server, new_xdg_toplevel);
-    struct wlr_xdg_toplevel *xdg_toplevel = data;
-
     struct pulse_toplevel *toplevel = calloc(1, sizeof(*toplevel));
     if (!toplevel) {
         wlr_log(WLR_ERROR, "Out of memory allocating pulse_toplevel");
@@ -298,7 +296,7 @@ void xdg_shell_handle_new_toplevel(struct wl_listener *listener, void *data)
     toplevel->scene_tree->node.data = toplevel;
 
     /* Also store the scene_tree in the xdg_surface's data field so that
-     * xdg_shell_handle_new_popup() can resolve its parent scene tree
+     * handle_new_popup() can resolve its parent scene tree
      * without a separate lookup structure. */
     xdg_toplevel->base->data = toplevel->scene_tree;
 
@@ -313,7 +311,9 @@ void xdg_shell_handle_new_toplevel(struct wl_listener *listener, void *data)
     wl_signal_add(&xdg_toplevel->base->surface->events.commit, &toplevel->commit);
 
     toplevel->destroy.notify = toplevel_handle_destroy;
-    wl_signal_add(&xdg_toplevel->events.destroy, &toplevel->destroy);
+    /* wlroots 0.17: wlr_xdg_toplevel has no destroy event of its own;
+     * the destruction signal lives on the underlying xdg_surface. */
+    wl_signal_add(&xdg_toplevel->base->events.destroy, &toplevel->destroy);
 
     toplevel->request_move.notify = toplevel_handle_request_move;
     wl_signal_add(&xdg_toplevel->events.request_move, &toplevel->request_move);
@@ -360,14 +360,9 @@ static void popup_handle_destroy(struct wl_listener *listener, void *data)
     free(popup);
 }
 
-void xdg_shell_handle_new_popup(struct wl_listener *listener, void *data)
+static void handle_new_popup(struct pulse_server *server,
+                               struct wlr_xdg_popup *xdg_popup)
 {
-    /* Recover the server via the listener that lives in server->new_xdg_popup.
-     * This is the idiomatic wlroots pattern — no compound-literal casts. */
-    struct pulse_server *server =
-        wl_container_of(listener, server, new_xdg_popup);
-    struct wlr_xdg_popup *xdg_popup = data;
-
     struct pulse_popup *popup = calloc(1, sizeof(*popup));
     if (!popup) {
         wlr_log(WLR_ERROR, "Out of memory allocating pulse_popup");
@@ -378,7 +373,7 @@ void xdg_shell_handle_new_popup(struct wl_listener *listener, void *data)
     /* Find the parent scene tree.
      * xdg_popup->parent is the parent wlr_surface. If it belongs to an
      * xdg_surface, that surface's data pointer holds the scene tree we
-     * stored in xdg_shell_handle_new_toplevel(). Fall back to the scene
+     * stored in handle_new_toplevel(). Fall back to the scene
      * root if the parent cannot be resolved (should not happen in practice). */
     struct wlr_scene_tree *parent_tree = &server->scene->tree;
     struct wlr_xdg_surface *parent_xdg =
@@ -399,5 +394,33 @@ void xdg_shell_handle_new_popup(struct wl_listener *listener, void *data)
     wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
 
     popup->destroy.notify = popup_handle_destroy;
-    wl_signal_add(&xdg_popup->events.destroy, &popup->destroy);
+    /* wlroots 0.17: wlr_xdg_popup has no destroy event of its own;
+     * the destruction signal lives on the underlying xdg_surface. */
+    wl_signal_add(&xdg_popup->base->events.destroy, &popup->destroy);
+}
+
+/* ---------------------------------------------------------------------------
+ * New xdg_surface — called when a client creates any xdg_surface.
+ * wlroots 0.17 emits a single new_surface signal; dispatch on the surface
+ * role. (wlroots 0.18+ splits this into new_toplevel / new_popup.)
+ * ------------------------------------------------------------------------- */
+void xdg_shell_handle_new_surface(struct wl_listener *listener, void *data)
+{
+    struct pulse_server *server =
+        wl_container_of(listener, server, new_xdg_surface);
+    struct wlr_xdg_surface *xdg_surface = data;
+
+    switch (xdg_surface->role) {
+    case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
+        handle_new_toplevel(server, xdg_surface->toplevel);
+        break;
+    case WLR_XDG_SURFACE_ROLE_POPUP:
+        handle_new_popup(server, xdg_surface->popup);
+        break;
+    case WLR_XDG_SURFACE_ROLE_NONE:
+        /* wlroots only emits new_surface once a role is assigned, so this
+         * is unreachable in practice — log defensively and ignore. */
+        wlr_log(WLR_ERROR, "New xdg_surface has no role — ignoring");
+        break;
+    }
 }

@@ -22,6 +22,9 @@ add_project_arguments(
     '-Wno-unused-parameter',   # wlroots callbacks often have unused params by design
     '-Wno-missing-field-initializers',
     '-D_POSIX_C_SOURCE=200809L',
+    # wlroots is an unstable API: every wlroots header refuses to compile
+    # unless WLR_USE_UNSTABLE is defined.
+    '-DWLR_USE_UNSTABLE',
   ]),
   language: 'c',
 )

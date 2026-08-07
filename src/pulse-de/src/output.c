@@ -156,12 +156,13 @@ void output_handle_new(struct wl_listener *listener, void *data)
         wlr_output_state_set_mode(&state, mode);
     }
 
-    /* Enable adaptive sync (variable refresh rate) if the output supports it.
+    /* Enable adaptive sync (variable refresh rate).
      * This reduces perceived stutter during the Pulse Beat Ambient animation
-     * on displays with VRR support. Non-fatal if unsupported. */
-    if (wlr_output->adaptive_sync_supported) {
-        wlr_output_state_set_adaptive_sync_enabled(&state, true);
-    }
+     * on displays with VRR support.
+     * wlroots 0.17 has no "supported" flag: the backend silently ignores the
+     * request when the output cannot do VRR, and reports the outcome through
+     * wlr_output->adaptive_sync_status after the commit. Non-fatal. */
+    wlr_output_state_set_adaptive_sync_enabled(&state, true);
 
     /* Commit the initial output configuration */
     if (!wlr_output_commit_state(wlr_output, &state)) {
@@ -240,5 +241,6 @@ void output_handle_new(struct wl_listener *listener, void *data)
             wlr_output->width,
             wlr_output->height,
             (mode ? (float)mode->refresh / 1000.0f : 0.0f),
-            wlr_output->adaptive_sync_supported ? " (adaptive sync)" : "");
+            wlr_output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED
+                ? " (adaptive sync)" : "");
 }

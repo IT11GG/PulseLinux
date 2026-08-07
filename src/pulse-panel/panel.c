@@ -20,6 +20,11 @@
  *   6. Attach the wl_buffer to the wl_surface and commit.
  */
 
+/* memfd_create() and MFD_* are GNU extensions hidden behind _GNU_SOURCE
+ * (the project sets -D_POSIX_C_SOURCE=200809L globally, which suppresses
+ * them). Must be defined before the first system header include. */
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

@@ -97,8 +97,7 @@ struct pulse_server {
      *       it listens on — storing them in the server struct is idiomatic
      *       in wlroots compositors for session-lifetime listeners) -------- */
     struct wl_listener        new_output;
-    struct wl_listener        new_xdg_toplevel;
-    struct wl_listener        new_xdg_popup;
+    struct wl_listener        new_xdg_surface;
     struct wl_listener        new_decoration;
     struct wl_listener        new_layer_surface;
     struct wl_listener        cursor_motion;

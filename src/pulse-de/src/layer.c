@@ -90,7 +90,9 @@ void layer_arrange(struct pulse_server *server, struct pulse_output *output)
             struct wlr_layer_surface_v1 *wls = lsurf->wlr_layer_surface;
             if (wls->output != output->wlr_output) continue;
             if (wls->current.layer != layer_order[li]) continue;
-            if (!wls->mapped) continue;
+            /* wlroots 0.17: wlr_layer_surface_v1 has no mapped flag of its
+             * own; the underlying wlr_surface tracks mapping. */
+            if (!wls->surface->mapped) continue;
 
             const struct wlr_layer_surface_v1_state *state = &wls->current;
             struct wlr_box bounds = usable;
@@ -207,7 +209,7 @@ static void layer_surface_handle_commit(struct wl_listener *listener, void *data
     struct pulse_layer_surface *lsurf =
         wl_container_of(listener, lsurf, commit);
 
-    if (lsurf->wlr_layer_surface->mapped) {
+    if (lsurf->wlr_layer_surface->surface->mapped) {
         struct pulse_output *output;
         wl_list_for_each(output, &lsurf->server->outputs, link) {
             if (output->wlr_output == lsurf->wlr_layer_surface->output) {

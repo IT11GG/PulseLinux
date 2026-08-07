@@ -107,7 +107,9 @@ void cursor_handle_button(struct wl_listener *listener, void *data)
         wl_container_of(listener, server, cursor_button);
     struct wlr_pointer_button_event *event = data;
 
-    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
+    /* wlroots 0.17: wlr_pointer_button_event.state is enum wlr_button_state
+     * (WLR_BUTTON_PRESSED/RELEASED), not the wl_pointer protocol enum. */
+    if (event->state == WLR_BUTTON_RELEASED) {
         /* Any button release ends an active grab, regardless of which
          * button it was. This prevents a stuck grab if the user releases
          * a different button than the one that started the grab. */
@@ -121,7 +123,7 @@ void cursor_handle_button(struct wl_listener *listener, void *data)
     wlr_seat_pointer_notify_button(server->seat, event->time_msec,
                                     event->button, event->state);
 
-    if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+    if (event->state == WLR_BUTTON_PRESSED) {
         /* Focus-on-click: find the toplevel under the cursor and focus it. */
         double sx, sy;
         struct wlr_surface *surface = NULL;
@@ -141,10 +143,10 @@ void cursor_handle_axis(struct wl_listener *listener, void *data)
         wl_container_of(listener, server, cursor_axis);
     struct wlr_pointer_axis_event *event = data;
 
+    /* wlroots 0.17: no relative_direction argument (added in 0.18). */
     wlr_seat_pointer_notify_axis(server->seat, event->time_msec,
                                   event->orientation, event->delta,
-                                  event->delta_discrete, event->source,
-                                  event->relative_direction);
+                                  event->delta_discrete, event->source);
 }
 
 /* ---------------------------------------------------------------------------

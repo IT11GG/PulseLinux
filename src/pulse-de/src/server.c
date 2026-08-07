@@ -73,7 +73,9 @@ bool server_init(struct pulse_server *server)
     server->event_loop = wl_display_get_event_loop(server->wl_display);
 
     /* ---- 2. wlroots backend (auto-detect: DRM/KMS, Wayland, X11) ------- */
-    server->backend = wlr_backend_autocreate(server->event_loop, NULL);
+    /* wlroots 0.17: wlr_backend_autocreate() takes the wl_display (the
+     * event-loop signature only arrived in 0.18). */
+    server->backend = wlr_backend_autocreate(server->wl_display, NULL);
     if (!server->backend) {
         wlr_log(WLR_ERROR, "Failed to create wlroots backend");
         goto err_display;
@@ -103,7 +105,8 @@ bool server_init(struct pulse_server *server)
     }
 
     /* ---- 6. Output layout (tracks monitor positions/transforms) -------- */
-    server->output_layout = wlr_output_layout_create(server->wl_display);
+    /* wlroots 0.17: wlr_output_layout_create() takes no arguments. */
+    server->output_layout = wlr_output_layout_create();
     if (!server->output_layout) {
         wlr_log(WLR_ERROR, "Failed to create output layout");
         goto err_scene;
@@ -146,13 +149,12 @@ bool server_init(struct pulse_server *server)
         goto err_output_layout;
     }
 
-    server->new_xdg_toplevel.notify = xdg_shell_handle_new_toplevel;
-    wl_signal_add(&server->xdg_shell->events.new_toplevel,
-                  &server->new_xdg_toplevel);
-
-    server->new_xdg_popup.notify = xdg_shell_handle_new_popup;
-    wl_signal_add(&server->xdg_shell->events.new_popup,
-                  &server->new_xdg_popup);
+    /* wlroots 0.17 emits a single new_surface signal for every xdg_surface;
+     * the handler dispatches on the surface role (toplevel vs popup). The
+     * split new_toplevel/new_popup signals only exist in wlroots 0.18+. */
+    server->new_xdg_surface.notify = xdg_shell_handle_new_surface;
+    wl_signal_add(&server->xdg_shell->events.new_surface,
+                  &server->new_xdg_surface);
 
     /* ---- 9. Server-side decoration manager ----------------------------- */
     if (!decoration_init(server)) {
@@ -281,9 +283,10 @@ bool server_run(struct pulse_server *server)
         return false;
     }
 
-    /* Set the initial cursor image */
-    wlr_xcursor_manager_set_cursor_image(server->xcursor_mgr, "default",
-                                          server->cursor);
+    /* Set the initial cursor image.
+     * wlroots 0.17: wlr_xcursor_manager_set_cursor_image() was removed;
+     * wlr_cursor_set_xcursor() is its replacement. */
+    wlr_cursor_set_xcursor(server->cursor, server->xcursor_mgr, "default");
 
     /* Block here until wl_display_terminate() is called (from a signal
      * handler or a protocol request) or the backend signals destruction. */

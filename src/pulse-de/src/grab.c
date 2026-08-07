@@ -48,7 +48,7 @@
 /* ---------------------------------------------------------------------------
  * Cursor image helpers
  *
- * wlr_xcursor_manager_set_cursor_image() takes a cursor name string.
+ * wlr_cursor_set_xcursor() takes a cursor name string.
  * We use the standard XCursor names that all desktop themes provide.
  * ------------------------------------------------------------------------- */
 
